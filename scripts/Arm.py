@@ -1,24 +1,24 @@
 import baxter_interface
+import rospy
 
-
-from geometry_msgs.msg import Pose
+from std_msgs.msg import Header
+from baxter_core_msgs.msg import SolvePositionIKRequest
+from geometry_msgs.msg import Pose, PoseStamped
 
 
 class Arm:
-    def __init__(self, limb, pose):
+    def __init__(self, limb):
         self.limb = baxter_interface.Limb(limb)
-        self.pose = pose
-        
+        self.pose = Pose()
         self.set_pose(self.pose)
 
-    def set_pose(self, pose = self.pose):
-        
-        pass
+    def set_pose(self):
+        header = Header(stamp=rospy.Time.now(), frame_id='base')
+        request = SolvePositionIKRequest()
+        request.pose_stamp.append(PoseStamped(header=header, pose=self.ik_pose))
 
     def get_current_pose(self)
         return self.limb.endpoint.pose()
-
-
 
 
 leftPose = {
@@ -39,15 +39,7 @@ rightPose = {
         rot_z: 0}
 rightArm = Arm('right', rightPose)
 
-
-
-
-
-
-
-
-
-
+leftArm.set_pose()
 
 
 # Loop similar to arduino setup loop!
