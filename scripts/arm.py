@@ -49,38 +49,49 @@ class Arm:
 
     def calibrate(self):
     	if self.limb_name is 'left':
-    		joint_positions = {
-                        'left_w0': -0.018791264651596317,
-                        'left_w1': -1.4737720419609113,
-                        'left_w2': -0.08360195293975504,
-                        'left_e0': 0.2059369207736168,
-                        'left_e1': 1.097946748928985,
-                        'left_s0': -0.6465729020937019,
-                        'left_s1': 0.32482043183473636
-                        }
+    		adjust = self.create_joint_position(self.keys, self.adjust)
     	else:
             # ToDo: implements right arms joints positions
     		return False
 
-        self.set_joints(joint_positions)
+        self.set_joints(adjust)
         self.go_home()
         rospy.loginfo('Arm calibrated!')
 
+    def go_home(self):
+        home = self.create_joint_position(self.keys, self.home)
+        self.set_joints(home)
+
     def choose_card(self, index):
         if index is 0:
-            # pick from first slot
-            pass
+            self.grip_action('open')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_a_offset))
+            self.set_joints(self.create_joint_position(self.keys, self.slot_a))
+            self.grip_action('close')
         elif index is 1:
-            # pick from second slot
-            pass
+            self.grip_action('open')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_b_offset))
+            self.set_joints(self.create_joint_position(self.keys, self.slot_b))
+            self.grip_action('close')
         elif index is 2:
             # pick from third slot
-            pass
+            self.grip_action('open')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_c_offset))
+            self.set_joints(self.create_joint_position(self.keys, self.slot_c))
+            self.grip_action('close')
         elif index is 3:
             # pick from fourth slot
-            pass
+            self.grip_action('open')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_d_offset))
+            self.set_joints(self.create_joint_position(self.keys, self.slot_d))
+            self.grip_action('close')
         else:
             rospy.logerr('Index out of range - Card index must be between 0 - 3!')
+        self.give_card()
+
+    def give_card(self):
+        self.set_joints(self.create_joint_position(self.keys, self.hand_card))
+        self.set_joints()
 
     def pick_card(self, displacement):
         self.pose.position.x = self._calibration_waypoint['position'].x
@@ -102,14 +113,6 @@ class Arm:
             self.gripper.close()
         else:
             rospy.logerr('Unknown gripper action, please choose between "open" or "close"')
-
-    def give_card(self):
-        # add joints
-        self.set_joints()
-
-    def go_home(self):
-        # add joints
-        self.set_joints()
 
     def tuck_arm(self):
         if self.limb_name is 'left':
