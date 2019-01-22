@@ -13,10 +13,17 @@ from geometry_msgs.msg import Pose, PoseStamped
 class Arm:
     def __init__(self, limb_name):
         rospy.init_node('rsdk_ik_service_client')
+        
+        # Enabling baxter
         baxter_enabler = baxter_interface.RobotEnable(CHECK_VERSION)
-        baxter_enabler.enable()
+        if not baxter_enabler.state().enabled:
+            baxter_enabler.enable()
+        
+        # Initialising limbs
         self.limb_name = limb_name
         self.limb = baxter_interface.Limb(self.limb_name)
+        
+        # Initialising poses
         self.pose = Pose()
         current = self.get_current_pose()
         self.pose.position.x = current['position'].x
@@ -25,8 +32,27 @@ class Arm:
         self.pose.orientation.x = current['orientation'].x
         self.pose.orientation.y = current['orientation'].y
         self.pose.orientation.z = current['orientation'].z
+        self.pose.orientation.w = current['orientation'].w
+        if self.limb_name is 'left':
+            self.x_displacement = -0.2
+            self.y_displacement = -0.15
+            self.slot_a_displacement = 0.0
+            self.slot_b_displacement = 0.0
+            self.slot_c_dlsplacement = 0.0
+            self.slot_d_displacement = 0.0
+        else:
+            self.x_displacement = -0.2
+            self.y_displacement = 0.15
+            self.slot_a_displacement = -0.0
+            self.slot_b_displacement = -0.0
+            self.slot_c_dlsplacement = -0.0
+            self.slot_d_displacement = -0.0
 
-    def set_pose(self):
+        self._calibration_waypoint = False
+        self.home_waypoint = False
+
+
+    def calculate_joints(self):
         header = Header(stamp=rospy.Time.now(), frame_id='base')
         ik_request = SolvePositionIKRequest()
         ik_request.pose_stamp.append(PoseStamped(header=header, pose=self.pose))
@@ -35,18 +61,83 @@ class Arm:
             ik_service = rospy.ServiceProxy(ik_namespace, SolvePositionIK)
             ik_response = ik_service(ik_request)
             ik_validation = struct.unpack('<%dB' % len(ik_response.result_type), ik_response.result_type)[0]
-            print(ik_validation)
             if (ik_validation != ik_response.RESULT_INVALID):
-                joint_position = dict(zip(ik_response.joints[0].name, ik_response.joints[0].position))
-                print(joint_position)
-                self.limb.move_to_joint_positions(joint_position)
+                return dict(zip(ik_response.joints[0].name, ik_response.joints[0].position))
             else:
                 rospy.logerr('No Valid Pose Found!')
+                return False
         except(rospy.ServiceException, rospy.ROSException), e:
             rospy.logerr('Service call failed: %s' % (e,))
+            return False
+
+    def set_pose(self):
+        joint_positions = self.calculate_joints()
+        print(joint_positions)
+        if (joint_positions):
+            self.set_joints(joint_positions)
+
+    def set_joints(self, joints):
+        return self.limb.move_to_joint_positions(joints)
 
     def get_current_pose(self):
         return self.limb.endpoint_pose()
+
+    def get_current_joints(self):
+        return self.limb.joint_angles()
+
+    def calibrate(self):
+        # user interface
+        # get current joints
+        self._calibration_waypoint = self.get_current_pose() 
+        self.pose.position.x = self._calibration_waypoint['position'].x + self.x_displacement
+        self.pose.position.y = self._calibration_waypoint['position'].y + self.y_displacement
+        self.home_waypoint = arm.calculate_joints()
+        if not self.home_waypoint:
+            rospy.logerr('Inverse Kinematics failed - home waypoint not calibrate, please try again!')
+            return False
+        else:
+            return self.home_waypoint
+        self.set_pose()
+)
+    def pick_card(self, index):
+        if index is 0:
+            # pick from first slot
+            self.pose.position.x = self._calibration_waypoint['position'].x
+            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_a_displacement
+            self.set_orientation('vertical')
+
+        elif index is 1:
+            # pick from second slot
+            self.pose.position.x = self._calibration_waypoint['position'].x
+            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_b_displacement
+            self.set_orientation('vertical')
+        elif index is 2:
+            # pick from third slot
+            self.pose.position.x = self._calibration_waypoint['position'].x
+            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_c_displacement
+            self.set_orientation('vertical')
+        elif index is 3:
+            # pick from fourth slot
+            self.pose.position.x = self._calibration_waypoint['position'].x
+            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_d_displacement
+            self.set_orientation('vertical')
+        else:
+            rospy.logerr('Index out of range - Card index must be between 0 - 3!')
+            return False
+        self.set_pose()
+
+    def go_home(self):
+        pass
+
+    def set_orientation(self, orientation = 'horizontal'):
+        if orientation = 'vertical':
+            # set to vertical
+            pass
+        elif orientation is 'horizontal':
+            # set to horizontal
+            pass
+        else:
+            rospy.logerr('Orientation not defined - please select between "horizontal" or "vertical"!')
 
     def tuck_arm(self):
         if self.limb_name is 'left':

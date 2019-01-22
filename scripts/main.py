@@ -1,17 +1,25 @@
 #! /usr/bin/env python
 
 import numpy as np
+import tf.transformations
+import rospy
 
-from Arm import *
+from tf.transformations import quaternion_from_euler
 
-def calibrate():
-    pass
+from Arm import * 
 
-leftArm = Arm('right')
-leftArm.tuck_arm()
-#print(leftArm.get_current_pose())
 
-#print(leftArm.limb.joint_angles())
+
+rightArm = Arm('right')
+rightArm.tuck_arm()
+
+leftArm = Arm('left')
+
+leftArm.calibrate()
+
+print(leftArm.get_current_pose())
+
+print(leftArm.get_current_joints())
 #print(leftArm.get_current_pose())
 
 #current = leftArm.get_current_pose()
