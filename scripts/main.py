@@ -8,13 +8,10 @@ from tf.transformations import quaternion_from_euler
 
 from Arm import * 
 
-
-
 rightArm = Arm('right')
 rightArm.tuck_arm()
 
 leftArm = Arm('left')
-
 leftArm.calibrate()
 
 print(leftArm.get_current_pose())

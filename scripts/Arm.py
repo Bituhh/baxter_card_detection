@@ -12,7 +12,7 @@ from geometry_msgs.msg import Pose, PoseStamped
 
 class Arm:
     def __init__(self, limb_name):
-        rospy.init_node('rsdk_ik_service_client')
+        rospy.init_node(limb_name+'_arm_client', anonymous=True)
         
         # Enabling baxter
         baxter_enabler = baxter_interface.RobotEnable(CHECK_VERSION)
@@ -21,7 +21,8 @@ class Arm:
         
         # Initialising limbs
         self.limb_name = limb_name
-        self.limb = baxter_interface.Limb(self.limb_name)
+        self.limb = baxter_interface.Limb(limb_name)
+        self.gripper = baxter_interface.Gripper(limb_name, CHECK_VERSION)
         
         # Initialising poses
         self.pose = Pose()
@@ -47,7 +48,7 @@ class Arm:
             self.slot_b_displacement = -0.0
             self.slot_c_dlsplacement = -0.0
             self.slot_d_displacement = -0.0
-
+        self.pick_displacement = 0.1
         self._calibration_waypoint = False
         self.home_waypoint = False
 
@@ -96,38 +97,58 @@ class Arm:
             rospy.logerr('Inverse Kinematics failed - home waypoint not calibrate, please try again!')
             return False
         else:
+            rospy.loginfo('Arm calibrated!')
             return self.home_waypoint
         self.set_pose()
 )
-    def pick_card(self, index):
+    def choose_card(self, index):
         if index is 0:
             # pick from first slot
-            self.pose.position.x = self._calibration_waypoint['position'].x
-            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_a_displacement
-            self.set_orientation('vertical')
+            pick_card(self.slot_a_displacement)
 
         elif index is 1:
             # pick from second slot
-            self.pose.position.x = self._calibration_waypoint['position'].x
-            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_b_displacement
-            self.set_orientation('vertical')
+            pick_card(self.slot_b_displacement)
         elif index is 2:
             # pick from third slot
-            self.pose.position.x = self._calibration_waypoint['position'].x
-            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_c_displacement
-            self.set_orientation('vertical')
+            pick_card(self.slot_c_displacement)
+
         elif index is 3:
             # pick from fourth slot
-            self.pose.position.x = self._calibration_waypoint['position'].x
-            self.pose.position.y = self._calibration_waypoint['position'].y + self.slot_d_displacement
-            self.set_orientation('vertical')
+            pick_card(self.slot_d_displacement)
         else:
             rospy.logerr('Index out of range - Card index must be between 0 - 3!')
-            return False
+
+    def pick_card(self, displacement):
+        self.pose.position.x = self._calibration_waypoint['position'].x
+        self.pose.position.y = self._calibration_waypoint['position'].y + displacement
+        self.pose.position.z = self._calibration_waypoint['position'].z + self.pick_displacement
+        self.set_orientation('vertical')
         self.set_pose()
+        self.grip_action('open')
+        self.pose.position.z = self._calibration_waypoint['position'].z
+        self.grip_action('close')
+        self.give_card()
+        self.go_home()
+
+    def grip_action(self, action):
+        if action == 'open':
+            self.gripper.open()
+        elif action == 'close':
+            self.gripper.close()
+        else:
+            rospy.logerr('Unknown gripper action, please choose between "open" or "close"')
+
+    def give_card(self)
+        self.pose.position.x = 0.0
+        self.pose.position.y = 0.0
+        self.pose.position.z = 0.0
 
     def go_home(self):
-        pass
+        self.pose.position.x = self.home_waypoint['position'].x
+        self.pose.position.y = self.home_waypoint['position'].y
+        self.pose.position.z = self.home_waypoint['position'].z
+        self.set_orientation('horizontal')
 
     def set_orientation(self, orientation = 'horizontal'):
         if orientation = 'vertical':
