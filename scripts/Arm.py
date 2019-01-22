@@ -49,6 +49,10 @@ class Arm:
             self.slot_c_dlsplacement = -0.0
             self.slot_d_displacement = -0.0
         self.pick_displacement = 0.1
+        self.give_card_x = 0.0
+        self.give_card_y = 0.0
+        self.give_card_z = 0.0
+        
         self._calibration_waypoint = False
         self.home_waypoint = False
 
@@ -71,11 +75,13 @@ class Arm:
             rospy.logerr('Service call failed: %s' % (e,))
             return False
 
-    def set_pose(self):
-        joint_positions = self.calculate_joints()
-        print(joint_positions)
-        if (joint_positions):
+    def set_pose(self, joint_positions=None):
+        if joint_positions:
             self.set_joints(joint_positions)
+        else:
+            joint_positions = self.calculate_joints()
+            if joint_positions:
+                self.set_joints(joint_positions)
 
     def set_joints(self, joints):
         return self.limb.move_to_joint_positions(joints)
@@ -140,9 +146,9 @@ class Arm:
             rospy.logerr('Unknown gripper action, please choose between "open" or "close"')
 
     def give_card(self)
-        self.pose.position.x = 0.0
-        self.pose.position.y = 0.0
-        self.pose.position.z = 0.0
+        self.pose.position.x = self.give_card_x
+        self.pose.position.y = self.give_card_y
+        self.pose.position.z = self.give_card_z
 
     def go_home(self):
         self.pose.position.x = self.home_waypoint['position'].x
@@ -184,21 +190,6 @@ class Arm:
 
 if __name__ == '__main__':
     leftArm = Arm('left')
-    current = leftArm.get_current_pose()
-    print(leftArm.pose.position.x)
-    leftArm.pose.position.x = 0.5
-    print(leftArm.pose.position.x)
-    leftArm.set_pose()
-
-
-
-
-
-
-
-
-
-
-
-
-
+    leftArm.tuck_arm()
+    rightArm = Arm('right')
+    rightArm.tuck_arm()

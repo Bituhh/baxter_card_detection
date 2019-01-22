@@ -6,26 +6,28 @@ import rospy
 
 from tf.transformations import quaternion_from_euler
 
-from Arm import * 
+from Arm import *
+
+
+calibration_response = 'n'
+card_response = 100
+home = False
 
 rightArm = Arm('right')
+leftArm = Arm('left')
+
 rightArm.tuck_arm()
 
-leftArm = Arm('left')
-leftArm.calibrate()
+while calibration_response is not 'y' and not home:
+    calibration_response = str(input('Please place the gripper arm at the center of the left hand side tag, press "y" to continue: '))
+    home = leftArm.calibrate()
+    if not home:
+        print('Something went wrong somewhere, please try again in a different position!')
 
-print(leftArm.get_current_pose())
+while card_response < 0 or card_response > 3:
+    card_response = int(input('Please pick a card index, where the left most corner is 0 and the right most corner is 3: '))
+    if card_response < 0 or card_response > 3:
+        print('Index out of range! Please choose a number between 0 and 3!')
 
-print(leftArm.get_current_joints())
-#print(leftArm.get_current_pose())
-
-#current = leftArm.get_current_pose()
-
-#tuck_right_arm()
-#leftArm.pose.position.x = current['position'].x
-#leftArm.pose.position.y = current['position'].y - 0.02
-#leftArm.pose.position.z = current['position'].z
-#leftArm.set_pose()
-
-
-
+leftArm.choose_card(card_response)
+rospy.spin()
