@@ -27,7 +27,7 @@ class Arm:
         self.limb = baxter_interface.Limb(limb_name)
         self.gripper = baxter_interface.Gripper(limb_name, CHECK_VERSION)
         self.keys = [ 'left_e0', 'left_e1', 'left_s0', 'left_s1', 'left_w0', 'left_w1', 'left_w2' ]
-        self.home = [  0.08091748656095557, 2.0555342557664544, -1.3219079439602552, -0.21207284392515846, -0.4206942310775747, -1.50176719133982, -0.32175247025896553 ]
+        self.home = [ -0.4759175394414496, 2.2227381616459647, -0.9579710020344409, -0.42836413501700177, -0.5614369683660614, -1.4898788402337082, 0.2822524649709161 ]
         self.slot_a = [ 0.768140879533621, 0.6699661091089545, -1.153553552489831, -0.05138835639416136, -0.8179952551398969, 0.9541360500647273, 1.5780827355371194 ]
         self.slot_a_offset = [0.7612379659881365, 0.6323835798057618, -1.1278593742927505, -0.12310195822780445, -0.7489661196850532, 1.100247720110813, 1.5358982638702705 ]
         self.slot_b = [ 0.8153107887610974, 0.47131559707779336, -1.1777137498990264, 0.02032524543948173, -0.8245146734884099, 1.050393344504537, 1.4365730078546899 ]
@@ -38,7 +38,7 @@ class Arm:
         self.slot_d_offset = [ 0.8862574002007978, 0.7186699991243164, -1.4281361135213202, -0.0782330201821561, -0.9387962421858732, 0.884339924215941, 1.4112623248545806 ]
         self.adjust = [ 0.3888641297289524, 0.9311263382464462, -1.4112623248545806, 0.35473305719850196, -0.8436894333369775, -1.07953897947436, 3.001233411497812 ]
         self.hand_card = [ 1.0316020798529408, 0.10085923680346595, -0.8440729285339489, 0.08590292412158317, -1.3652429012180183, -0.9330438142313029, 1.8388594694776397 ]
-
+        self.safe_state = [ -0.18062623777350748, 1.8396264598715824, -0.6385195029573034, -1.1355292782321775, -0.1292378813793461, 0.8862574002007978, -0.05675728915176031 ]
         # Initialising poses - Inverse Kinematics
         self.pose = Pose()
 
@@ -51,6 +51,7 @@ class Arm:
 
     def calibrate(self):
     	if self.limb_name is 'left':
+            self.gripper.calibrate()
     		adjust = self.create_joint_position(self.keys, self.adjust)
     	else:
             # ToDo: implements right arms joints positions
@@ -65,11 +66,13 @@ class Arm:
         self.set_joints(home)
 
     def choose_card(self, index):
+        self.set_joints(self.create_joint_position(self.keys, self.safe_state))
         if index is 0:
             self.grip_action('open')
             self.set_joints(self.create_joint_position(self.keys, self.slot_a_offset))
             self.set_joints(self.create_joint_position(self.keys, self.slot_a))
             self.grip_action('close')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_a_offset))
             print('sleeping')
             time.sleep(5)
 
@@ -78,18 +81,21 @@ class Arm:
             self.set_joints(self.create_joint_position(self.keys, self.slot_b_offset))
             self.set_joints(self.create_joint_position(self.keys, self.slot_b))
             self.grip_action('close')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_b_offset))
         elif index is 2:
             # pick from third slot
             self.grip_action('open')
             self.set_joints(self.create_joint_position(self.keys, self.slot_c_offset))
             self.set_joints(self.create_joint_position(self.keys, self.slot_c))
             self.grip_action('close')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_c_offset))
         elif index is 3:
             # pick from fourth slot
             self.grip_action('open')
             self.set_joints(self.create_joint_position(self.keys, self.slot_d_offset))
             self.set_joints(self.create_joint_position(self.keys, self.slot_d))
             self.grip_action('close')
+            self.set_joints(self.create_joint_position(self.keys, self.slot_d_offset))
         else:
             rospy.logerr('Index out of range - Card index must be between 0 - 3!')
         self.give_card()

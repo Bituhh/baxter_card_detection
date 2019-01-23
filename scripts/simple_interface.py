@@ -60,6 +60,7 @@ class EyeInHand:
         for iterations, corner in enumerate(self.corners):
             card_img = self.cards.extract_card(corner)
             self.cards.append(card_img)
+            cv2.imshow(str(iterations), card_img)
 
     def pick_choices(self):
         while not rospy.is_shutdown():
