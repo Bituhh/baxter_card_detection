@@ -50,8 +50,8 @@ class Arm:
         return self.limb.joint_angles()
 
     def calibrate(self):
+        self.gripper.calibrate()
     	if self.limb_name is 'left':
-            self.gripper.calibrate()
     		adjust = self.create_joint_position(self.keys, self.adjust)
     	else:
             # ToDo: implements right arms joints positions
