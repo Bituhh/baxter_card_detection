@@ -1,12 +1,9 @@
 #! /usr/bin/env python
 
 import cv2
-import baxter_interface
 import rospy
 import numpy as np
 
-from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
 
 class Cards:
     def __init__(self, img = []):
@@ -18,29 +15,29 @@ class Cards:
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.bilateralFilter(gray,11,17,17) # Filtering noise
         blur = cv2.GaussianBlur(gray, kernel_shape, 0)
-        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2, 2) 
+        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2, 2)
         erode = cv2.erode(thresh, kernel, iterations = 1)
         canny = cv2.Canny(blur, blur.mean()*0.01, blur.mean()*1.5)
         img, contours, hierarchy = cv2.findContours(canny, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         # Initialising return lists
         cards_contours = []
         cards_corners = []
         cards_hierarchy = []
-        
+
         for i in range(len(contours)):
             area = cv2.contourArea(contours[i])
             perimeter = 0.1*cv2.arcLength(contours[i],True)
             corner = cv2.approxPolyDP(contours[i],perimeter,True)
-            
+
             # Contour and corners will only be appended to the list, only
             # if the area is within range (max_area, min_area), contains 4
             # corners and have no parents (hierarchy).
-            if (area > min_area) and (area < max_area) and (len(corner) == 4) and (hierarchy[0, i, 3] == -1):    
+            if (area > min_area) and (area < max_area) and (len(corner) == 4) and (hierarchy[0, i, 3] == -1):
                 cards_contours.append(contours[i])
                 cards_corners.append(corner)
                 cards_hierarchy.append(hierarchy[0])
-        
+
         return cards_corners, cards_contours, cards_hierarchy
 
     def extract_card(self, corner):
@@ -68,39 +65,3 @@ class Cards:
                 # Appending cropped image of suit and rank to suits array.
                 suits.append(thresh[7:77, 5:35])
         return suits
-
-
-class Camera:
-    def __init__(self, limb_name):
-        self.limb_name = limb_name
-        if limb_name == 'left':
-            self.other_limb_name = 'right'
-        else:
-            self.other_limb_name = 'left'
-        self.bridge = CvBridge()
-        self.cards = Cards()
-        rospy.init_node(limb_name, anonymous=True)
-        self.display_pub = rospy.Publisher('/robot/xdisplay', Image)
-        head_camera = baxter_interface.CameraController('head_camera')
-        head_camera.close()
-        self.other_camera = baxter_interface.CameraController(self.other_limb_name + '_hand_camera')
-        self.other_camera.close() 
-        self.camera = baxter_interface.CameraController(self.limb_name + '_hand_camera')
-        self.camera.open()
-        subscriber = rospy.Subscriber('/cameras/' + self.limb_name + '_hand_camera/image', Image, self.callback, None, 1)
-        if not rospy.is_shutdown():
-            rospy.spin()
-
-    def callback(self, msg):
-        #print(msg)
-        self.cards.img = self.bridge.imgmsg_to_cv2(msg)
-        self.corners, self.contours, self.hierarchy = self.cards.get_features((5,5))
-        print(len(self.corners))
-        for iterations, corner in enumerate(self.corners):
-            self.card_img = self.cards.extract_card(corner)
-            cv2.imshow(str(iterations), self.card_img)
-            cv2.waitKey(1)
-
-leftCam = Camera('left')
-cv2.destroyAllWindows()
-

@@ -6,6 +6,7 @@ from baxter_interface import CHECK_VERSION
 import rospy
 import struct
 from math import pi
+import time
 
 from std_msgs.msg import Header
 from baxter_core_msgs.srv import SolvePositionIKRequest, SolvePositionIK
@@ -21,12 +22,12 @@ class Arm:
         if not self.baxter_enabler.state().enabled and enable:
             self.baxter_enabler.enable()
 
-        # Initialising limbs
+        # Initialising limb
         self.limb_name = limb_name
         self.limb = baxter_interface.Limb(limb_name)
         self.gripper = baxter_interface.Gripper(limb_name, CHECK_VERSION)
-        self.keys = [ left_e0, left_e1, left_s0, left_s1, left_w0, left_w1, left_w2 ]
-        self.home = [ 0.11926700625809092, 1.7606264492954837, -1.5424176822187836, 0.07708253459124204, -0.7654564131548215, -1.472238061173026, 2.8052673658454506 ]
+        self.keys = [ 'left_e0', 'left_e1', 'left_s0', 'left_s1', 'left_w0', 'left_w1', 'left_w2' ]
+        self.home = [  0.08091748656095557, 2.0555342557664544, -1.3219079439602552, -0.21207284392515846, -0.4206942310775747, -1.50176719133982, -0.32175247025896553 ]
         self.slot_a = [ 0.768140879533621, 0.6699661091089545, -1.153553552489831, -0.05138835639416136, -0.8179952551398969, 0.9541360500647273, 1.5780827355371194 ]
         self.slot_a_offset = [0.7612379659881365, 0.6323835798057618, -1.1278593742927505, -0.12310195822780445, -0.7489661196850532, 1.100247720110813, 1.5358982638702705 ]
         self.slot_b = [ 0.8153107887610974, 0.47131559707779336, -1.1777137498990264, 0.02032524543948173, -0.8245146734884099, 1.050393344504537, 1.4365730078546899 ]
@@ -42,6 +43,7 @@ class Arm:
         self.pose = Pose()
 
     def set_joints(self, joints):
+        print(joints)
         return self.limb.move_to_joint_positions(joints)
 
     def get_current_joints(self):
@@ -55,7 +57,7 @@ class Arm:
     		return False
 
         self.set_joints(adjust)
-        self.go_home()
+        self.grip_action('open')
         rospy.loginfo('Arm calibrated!')
 
     def go_home(self):
@@ -68,6 +70,9 @@ class Arm:
             self.set_joints(self.create_joint_position(self.keys, self.slot_a_offset))
             self.set_joints(self.create_joint_position(self.keys, self.slot_a))
             self.grip_action('close')
+            print('sleeping')
+            time.sleep(5)
+
         elif index is 1:
             self.grip_action('open')
             self.set_joints(self.create_joint_position(self.keys, self.slot_b_offset))
@@ -91,7 +96,8 @@ class Arm:
 
     def give_card(self):
         self.set_joints(self.create_joint_position(self.keys, self.hand_card))
-        self.set_joints()
+        self.grip_action('open')
+        self.go_home()
 
     def pick_card(self, displacement):
         self.pose.position.x = self._calibration_waypoint['position'].x
@@ -116,25 +122,9 @@ class Arm:
 
     def tuck_arm(self):
         if self.limb_name is 'left':
-            joint_positions = {
-                    'left_w0': 0.10776215034895031,
-                    'left_w1': 0.09050486648523941,
-                    'left_w2': -0.08360195293975504,
-                    'left_e0': 2.9160974777701716,
-                    'left_e1': 2.5448741271019015,
-                    'left_s0': -0.8490583660945765,
-                    'left_s1': -2.1794032043882017
-                    }
-	else:
-            joint_positions = {
-                    'right_s0': 0.8536603084582327,
-                    'right_s1': -2.182087670767001,
-                    'right_w0': -0.1169660350762628,
-                    'right_w1': 0.3163835375013666,
-                    'right_w2': 0.10929613113683573,
-                    'right_e0': -2.8562722270426404,
-                    'right_e1': 2.541039175132188
-                    }
+            joint_positions = {'left_w0': 0.10776215034895031,'left_w1': 0.09050486648523941,'left_w2': -0.08360195293975504,'left_e0': 2.9160974777701716,'left_e1': 2.5448741271019015,'left_s0': -0.8490583660945765,'left_s1': -2.1794032043882017 }
+        else:
+           joint_positions = {'right_s0': 0.8536603084582327,'right_s1': -2.182087670767001,'right_w0': -0.1169660350762628,'right_w1': 0.3163835375013666,'right_w2': 0.10929613113683573,'right_e0': -2.8562722270426404,'right_e1': 2.541039175132188 }
         self.set_joints(joint_positions)
 
     def set_enabler(self, state):
@@ -144,7 +134,7 @@ class Arm:
             self.baxter_enabler.disable()
 
     def create_joint_position(self, keys, joints):
-        return dir(zip(keys, joints))
+        return dict(zip(keys, joints))
 
     def calculate_joints(self):
         # Inverse Kinematics, could not get the task to work with this, left for later projects
